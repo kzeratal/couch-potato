@@ -1,0 +1,213 @@
+import { spawn } from "node:child_process";
+import { readdir, readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { configPath, readConfig, type ShadowConfig } from "../core/config.ts";
+import { gitToplevel, isGitRepo } from "../core/git.ts";
+import { absPath, defaultShadowFor, projectsRoot } from "../core/paths.ts";
+import { sync as runSync } from "./sync.ts";
+
+interface WorkArgs {
+  shadow?: string;
+  real?: string;
+  skipSync: boolean;
+  printPrompt: boolean;
+  passThrough: string[];
+}
+
+/**
+ * Custom parser for `work` so unrecognized flags (e.g. -c, --continue,
+ * --resume, --fork-session) are forwarded verbatim to the spawned `claude`.
+ * Use `--` to force everything after to be passed through unchanged.
+ */
+function parseWorkArgs(argv: string[]): WorkArgs {
+  const out: WorkArgs = { skipSync: false, printPrompt: false, passThrough: [] };
+  let i = 0;
+  while (i < argv.length) {
+    const a = argv[i]!;
+    if (a === "--") {
+      out.passThrough.push(...argv.slice(i + 1));
+      break;
+    }
+    if (a === "--shadow") { out.shadow = argv[++i]; i++; continue; }
+    if (a === "--real")   { out.real   = argv[++i]; i++; continue; }
+    if (a === "--skip-sync")    { out.skipSync = true;    i++; continue; }
+    if (a === "--print-prompt") { out.printPrompt = true; i++; continue; }
+    // Anything else is for claude.
+    out.passThrough.push(a);
+    i++;
+  }
+  return out;
+}
+
+export async function work(argv: string[]): Promise<void> {
+  const args = parseWorkArgs(argv);
+
+  const real = await resolveReal(args.real);
+
+  const shadow = args.shadow
+    ? absPath(args.shadow)
+    : await resolveShadow(real);
+
+  const cfg = await readConfig(shadow).catch(() => {
+    throw new Error(`shadow has no config: ${shadow}`);
+  });
+  if (cfg.target !== real) {
+    throw new Error(
+      `shadow target mismatch:\n  shadow says: ${cfg.target}\n  CWD/repo:    ${real}\n` +
+      `(use --shadow to override or run \`couch-potato init\` for this repo)`,
+    );
+  }
+
+  const { skipSync, printPrompt, passThrough } = args;
+
+  const systemPrompt = await buildSystemPrompt(shadow, cfg);
+
+  if (printPrompt) {
+    process.stdout.write(systemPrompt);
+    return;
+  }
+
+  console.log(`real:    ${real}`);
+  console.log(`shadow:  ${shadow}`);
+  console.log(`map:     root _MAP.md inlined (${approxTokens(systemPrompt)} approx tokens)`);
+  if (passThrough.length > 0) {
+    console.log(`forward: ${passThrough.join(" ")}`);
+  }
+
+  if (resumesPriorConversation(passThrough)) {
+    console.log("");
+    console.log("⚠️  warning: -c/--continue resumes a prior conversation.");
+    console.log("   --append-system-prompt only applies to NEW conversations,");
+    console.log("   so the resumed Claude may not see the map instructions and");
+    console.log("   will likely fall back to grep/glob/read on real source.");
+    console.log("   For a true couch-potato session, omit -c.");
+  }
+  console.log("");
+
+  await spawnClaude({ cwd: real, systemPrompt, shadow, extraArgs: passThrough });
+
+  if (!skipSync) {
+    console.log("");
+    console.log("=== syncing maps ===");
+    await runSync(["--shadow", shadow]);
+  }
+}
+
+async function resolveReal(input: string | undefined): Promise<string> {
+  const start = input ? absPath(input) : process.cwd();
+  const s = await stat(start).catch(() => null);
+  if (!s?.isDirectory()) {
+    throw new Error(`not a directory: ${start}`);
+  }
+  if (!(await isGitRepo(start))) {
+    throw new Error(`not a git repo: ${start}\n(couch-potato work must be run inside a git repository)`);
+  }
+  return await gitToplevel(start);
+}
+
+/**
+ * Find the shadow that targets `real`. Priority:
+ *   1. Default-named shadow (~/couch-potato/projects/<basename>)
+ *   2. Scan ~/couch-potato/projects/* for any whose config.target matches.
+ */
+async function resolveShadow(real: string): Promise<string> {
+  const def = defaultShadowFor(real);
+  if (await isShadowFor(def, real)) return def;
+
+  const root = projectsRoot();
+  let entries: string[];
+  try {
+    entries = await readdir(root);
+  } catch {
+    throw new Error(
+      `no shadow found for ${real}\n(run \`couch-potato init ${real}\` first)`,
+    );
+  }
+  for (const name of entries) {
+    const candidate = join(root, name);
+    if (await isShadowFor(candidate, real)) return candidate;
+  }
+  throw new Error(
+    `no shadow found for ${real}\n(run \`couch-potato init ${real}\` first)`,
+  );
+}
+
+async function isShadowFor(shadow: string, real: string): Promise<boolean> {
+  try {
+    const cfg = JSON.parse(await readFile(configPath(shadow), "utf8")) as ShadowConfig;
+    return cfg.target === real;
+  } catch {
+    return false;
+  }
+}
+
+async function buildSystemPrompt(shadow: string, cfg: ShadowConfig): Promise<string> {
+  const rootMapPath = join(shadow, "_MAP.md");
+  const rootMap = await readFile(rootMapPath, "utf8").catch(() => "(root _MAP.md missing)");
+
+  return `# Couch-potato code virtual map
+
+This codebase has a navigation map generated by couch-potato.
+
+- **Shadow location:** \`${shadow}\`
+- **Target repo:** \`${cfg.target}\` @ \`${cfg.ref}\`
+
+## How to use the map
+
+The shadow contains a directory tree mirror of this repo. Each directory has a \`_MAP.md\` file with a structured summary:
+- \`purpose\` — one-sentence role of the directory
+- \`entries\` — public/external symbols (functions, routes, exports) callers outside this dir use
+- \`deps\` — important dependencies on other directories or external packages
+- \`gotchas\` — non-obvious constraints, ordering requirements, surprising behavior
+
+Each \`_MAP.md\` also records git blob hashes per file. If those hashes don't match the real repo's current state, the map is stale for that file — read the real source for ground truth.
+
+## Workflow rules
+
+1. **Navigate via the map first.** Before grep/glob/read on source for orientation, Read \`<shadow>/<dir>/_MAP.md\`. The map's \`entries\`, \`deps\`, and \`gotchas\` are designed to short-circuit exploration.
+2. **The shadow is read-only.** Never Edit/Write inside \`${shadow}\`. Real code lives in CWD.
+3. **Edit normally in CWD.** This session's CWD is the real repo. Edit/Write/Bash work as usual against real source.
+4. **Maps are git-blob-hash-pinned.** If you Read a real file and its content seems different from what the map describes, trust the file (current source) over the map (snapshot at last scan).
+5. **Sync on completion.** After a task is done, the wrapper will run \`couch-potato sync\` automatically. You don't need to call it manually unless the user explicitly asks.
+
+## Root map (inlined for fast bootstrap)
+
+${rootMap}
+`;
+}
+
+function spawnClaude(opts: {
+  cwd: string;
+  systemPrompt: string;
+  shadow: string;
+  extraArgs: string[];
+}): Promise<void> {
+  const args = [
+    "--append-system-prompt", opts.systemPrompt,
+    "--add-dir", opts.shadow,
+    ...opts.extraArgs,
+  ];
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn("claude", args, { cwd: opts.cwd, stdio: "inherit" });
+    proc.on("error", (err) => {
+      reject(new Error(`failed to spawn claude: ${err.message} (is it on PATH?)`));
+    });
+    proc.on("close", (code) => {
+      if (code === 0 || code === null) resolve();
+      else resolve(); // claude exited non-zero (user Ctrl-C etc.); still run sync
+    });
+  });
+}
+
+function approxTokens(s: string): number {
+  // Rough heuristic: ~4 chars per token.
+  return Math.ceil(s.length / 4);
+}
+
+function resumesPriorConversation(passThrough: string[]): boolean {
+  for (const a of passThrough) {
+    if (a === "-c" || a === "--continue" || a === "--resume" || a === "--from-pr") return true;
+  }
+  return false;
+}
