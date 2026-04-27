@@ -5,6 +5,7 @@ import { readConfig } from "../core/config.ts";
 import { gitExec, lsTree, type TreeEntry } from "../core/git.ts";
 import { readMapFile } from "../core/map-file.ts";
 import { absPath } from "../core/paths.ts";
+import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
 
 type DirState = "PLACEHOLDER" | "FRESH" | "STALE";
@@ -20,6 +21,7 @@ interface DirReport {
 export async function status(argv: string[]): Promise<void> {
   const { flags } = parseArgs(argv);
   const shadow = flags.shadow ? absPath(String(flags.shadow)) : process.cwd();
+  const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
 
   const cfg = await readConfig(shadow).catch(() => {
     throw new Error(`not a couch-potato shadow: ${shadow} (missing .couch-potato/config.json)`);
@@ -34,16 +36,19 @@ export async function status(argv: string[]): Promise<void> {
   // Detect dirty working tree (we only compare against HEAD).
   const dirty = await isDirty(real);
 
-  // Real repo: collect all blobs grouped by parent dir.
-  const allEntries = await lsTree(real, cfg.ref);
-  const realFilesByDir = groupBlobsByDir(allEntries);
-  const realDirSet = new Set<string>([""]);
+  // Real repo: collect all blobs grouped by parent dir, scoped if requested.
+  const allEntries = await lsTree(real, cfg.ref, scope);
+  const realFilesByDir = groupBlobsByDir(allEntries, scope);
+  const realDirSet = new Set<string>();
+  if (inScope("", scope)) realDirSet.add("");
   for (const e of allEntries) {
+    if (!inScope(e.path, scope)) continue;
     if (e.type === "tree") realDirSet.add(e.path);
   }
 
-  // Shadow: collect all _MAP.md files.
-  const shadowMaps = await walkShadowMaps(shadow);
+  // Shadow: collect all _MAP.md files, filtered by scope.
+  const allShadowMaps = await walkShadowMaps(shadow);
+  const shadowMaps = allShadowMaps.filter((m) => inScope(m.dirRel, scope));
   const shadowDirSet = new Set(shadowMaps.map((m) => m.dirRel));
 
   const reports: DirReport[] = [];
@@ -63,6 +68,7 @@ export async function status(argv: string[]): Promise<void> {
     shadow,
     real,
     ref: cfg.ref,
+    scope,
     dirty,
     reports: reports.sort((a, b) => a.dir.localeCompare(b.dir)),
     newDirs,
@@ -79,10 +85,11 @@ async function isDirty(repo: string): Promise<boolean> {
   }
 }
 
-function groupBlobsByDir(entries: TreeEntry[]): Map<string, Map<string, string>> {
+function groupBlobsByDir(entries: TreeEntry[], scope: string): Map<string, Map<string, string>> {
   const m = new Map<string, Map<string, string>>();
   for (const e of entries) {
     if (e.type !== "blob") continue;
+    if (!inScope(e.path, scope)) continue;
     const parent = posix.dirname(e.path);
     const key = parent === "." ? "" : parent;
     const name = posix.basename(e.path);
@@ -128,6 +135,7 @@ function printReport(r: {
   shadow: string;
   real: string;
   ref: string;
+  scope: string;
   dirty: boolean;
   reports: DirReport[];
   newDirs: string[];
@@ -135,7 +143,7 @@ function printReport(r: {
 }): void {
   const cwd = process.cwd();
   console.log(`shadow:  ${relative(cwd, r.shadow) || "."}`);
-  console.log(`target:  ${r.real} @ ${r.ref}`);
+  console.log(`target:  ${r.real} @ ${r.ref}${r.scope ? `  (--scope /${r.scope})` : ""}`);
   if (r.dirty) {
     console.log(`warning: target has uncommitted changes — comparing against ${r.ref} only`);
   }

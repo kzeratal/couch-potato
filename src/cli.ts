@@ -8,13 +8,16 @@ const HELP = `couch-potato — code virtual map for Claude
 
 Usage:
   couch-potato init <real-repo-path> [--shadow <dir>]
-  couch-potato scan   [--shadow <dir>]
-  couch-potato status [--shadow <dir>]
-  couch-potato sync   [--shadow <dir>]
+  couch-potato scan   [--shadow <dir>] [--scope <subpath>] [--force]
+  couch-potato status [--shadow <dir>] [--scope <subpath>]
+  couch-potato sync   [--shadow <dir>] [--scope <subpath>]
   couch-potato work   [--real <repo>] [--shadow <dir>] [--skip-sync] [-- <claude args>]
 
 Options:
   --shadow <dir>   Override shadow directory (default: ~/couch-potato/projects/<repo-name>)
+  --scope <path>   Limit operation to a subtree (e.g. src/inspector). Coverage grows
+                   incrementally as you scope-sync different areas of the same shadow.
+  --force          (scan) force rescan of already-scanned dirs
   --skip-sync      (work) don't auto-sync after claude exits
   --print-prompt   (work) print the system prompt that would be injected and exit
   -h, --help       Show this help

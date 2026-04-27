@@ -13,11 +13,13 @@ import {
 } from "../core/mirror.ts";
 import { absPath } from "../core/paths.ts";
 import { depth, displayDir, newScanContext, scanOneDir } from "../core/scanner.ts";
+import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
 
 export async function sync(argv: string[]): Promise<void> {
   const { flags } = parseArgs(argv);
   const shadow = flags.shadow ? absPath(String(flags.shadow)) : process.cwd();
+  const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
 
   const cfg = await readConfig(shadow).catch(() => {
     throw new Error(`not a couch-potato shadow: ${shadow}`);
@@ -25,18 +27,21 @@ export async function sync(argv: string[]): Promise<void> {
 
   const ig = await loadIgnore(shadow);
 
-  // 1. Index shadow.
-  const shadowMaps = await walkShadowMaps(shadow);
+  // 1. Index shadow (filtered by --scope if given).
+  const allShadowMaps = await walkShadowMaps(shadow);
+  const shadowMaps = allShadowMaps.filter((m) => inScope(m.dirRel, scope));
   const shadowDirSet = new Set(shadowMaps.map((m) => m.dirRel));
 
-  // 2. Index real repo (filtered through ignore patterns — ignored paths
-  // become invisible to the real-side, naturally turning matching shadow
-  // entries into orphans on next sync).
-  const realEntries = await lsTree(cfg.target, cfg.ref);
-  const realDirSet = new Set<string>([""]);
+  // 2. Index real repo (filtered by --scope and ignore patterns — ignored
+  // paths become invisible to the real-side, naturally turning matching
+  // shadow entries into orphans on next sync).
+  const realEntries = await lsTree(cfg.target, cfg.ref, scope);
+  const realDirSet = new Set<string>();
+  if (inScope("", scope)) realDirSet.add("");
   let ignoredCount = 0;
   for (const e of realEntries) {
     if (isIgnored(ig, e.path, e.type === "tree")) { ignoredCount++; continue; }
+    if (!inScope(e.path, scope)) continue;
     if (e.type === "tree") realDirSet.add(e.path);
   }
 
@@ -45,7 +50,7 @@ export async function sync(argv: string[]): Promise<void> {
   const newDirs    = [...realDirSet].filter((d) => !shadowDirSet.has(d));
 
   // 4. Detect stale dirs via dir_hash comparison.
-  // Note: git tree hash is derived from sorted (mode+type+hash+name) entries,
+  // git tree hash is derived from sorted (mode+type+hash+name) entries,
   // so a matching dir_hash mathematically implies all per-file hashes match too.
   const staleDirs: string[] = [];
   for (const m of shadowMaps) {
@@ -59,16 +64,16 @@ export async function sync(argv: string[]): Promise<void> {
     if (!realHash || realHash !== fm.dirHash) staleDirs.push(m.dirRel);
   }
 
-  // 5. Affected = stale ∪ new ∪ ancestors_of(stale ∪ new ∪ orphan)
+  // 5. Affected = stale ∪ new ∪ (ancestors of stale ∪ new ∪ orphan, restricted to scope).
   const affected = new Set<string>([...staleDirs, ...newDirs]);
   for (const d of [...staleDirs, ...newDirs, ...orphanDirs]) {
-    for (const a of ancestors(d)) affected.add(a);
+    for (const a of ancestors(d)) {
+      if (inScope(a, scope) && realDirSet.has(a)) affected.add(a);
+    }
   }
-  // Restrict ancestors to currently-existing-in-real dirs.
-  for (const d of [...affected]) if (!realDirSet.has(d)) affected.delete(d);
 
   console.log(`shadow:  ${shadow}`);
-  console.log(`target:  ${cfg.target} @ ${cfg.ref}`);
+  console.log(`target:  ${cfg.target} @ ${cfg.ref}${scope ? `  (--scope /${scope})` : ""}`);
   if (ignoredCount > 0) {
     console.log(`ignored: ${ignoredCount} entries (.couch-potato/ignore)`);
   }

@@ -6,7 +6,7 @@ import { isIgnored } from "./ignore.ts";
 
 export interface MirrorPlan {
   dirs: string[];        // posix-style paths relative to repo root, "" = root
-  files: TreeEntry[];    // blob entries
+  files: TreeEntry[];    // blob entries (paths repo-relative)
 }
 
 export async function planMirror(

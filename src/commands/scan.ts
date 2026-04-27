@@ -3,19 +3,22 @@ import { readConfig } from "../core/config.ts";
 import { loadIgnore } from "../core/ignore.ts";
 import { absPath } from "../core/paths.ts";
 import { depth, displayDir, newScanContext, scanOneDir } from "../core/scanner.ts";
+import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
 
 export async function scan(argv: string[]): Promise<void> {
   const { flags } = parseArgs(argv);
   const shadow = flags.shadow ? absPath(String(flags.shadow)) : process.cwd();
   const force = flags.force === true;
+  const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
 
   const cfg = await readConfig(shadow).catch(() => {
     throw new Error(`not a couch-potato shadow: ${shadow}`);
   });
 
   const ig = await loadIgnore(shadow);
-  const maps = await walkShadowMaps(shadow);
+  const allMaps = await walkShadowMaps(shadow);
+  const maps = allMaps.filter((m) => inScope(m.dirRel, scope));
   // Bottom-up: deepest first so children are scanned before parents.
   maps.sort((a, b) => depth(b.dirRel) - depth(a.dirRel) || a.dirRel.localeCompare(b.dirRel));
 
