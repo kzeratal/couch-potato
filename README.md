@@ -54,8 +54,24 @@ couch-potato work
 | `couch-potato sync` | Detect stale/new/orphan dirs from real repo, refresh affected. `--scope` to limit. |
 | `couch-potato status` | Diff shadow against real repo. `--scope` to limit. |
 | `couch-potato work` | Spawn `claude` in the real repo with the shadow's root map injected as system prompt. |
+| `couch-potato completion <shell>` | Print zsh / bash / fish completion script. |
 
 Common flags: `--shadow <dir>` overrides shadow path; `--concurrency N` (scan/sync) sets parallel workers; `--scope <path>` limits the operation to a subtree.
+
+## Shell completion
+
+```bash
+# zsh
+mkdir -p ~/.zfunc
+couch-potato completion zsh > ~/.zfunc/_couch-potato
+echo 'fpath=(~/.zfunc $fpath); autoload -U compinit && compinit' >> ~/.zshrc
+
+# bash
+couch-potato completion bash > ~/.local/share/bash-completion/completions/couch-potato
+
+# fish
+couch-potato completion fish > ~/.config/fish/completions/couch-potato.fish
+```
 
 ## How it stays fresh
 

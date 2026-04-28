@@ -1,3 +1,4 @@
+import { completion } from "./commands/completion.ts";
 import { init } from "./commands/init.ts";
 import { scan } from "./commands/scan.ts";
 import { status } from "./commands/status.ts";
@@ -12,6 +13,7 @@ Usage:
   couch-potato status [--shadow <dir>] [--scope <subpath>]
   couch-potato sync   [--shadow <dir>] [--scope <subpath>]
   couch-potato work   [--real <repo>] [--shadow <dir>] [--skip-sync] [-- <claude args>]
+  couch-potato completion <zsh|bash|fish>
 
 Options:
   --shadow <dir>   Override shadow directory (default: ~/couch-potato/projects/<repo-name>)
@@ -52,6 +54,9 @@ export async function run(argv: string[]): Promise<void> {
       return;
     case "work":
       await work(rest);
+      return;
+    case "completion":
+      await completion(rest);
       return;
     default:
       throw new Error(`unknown command: ${cmd}\n\n${HELP}`);
