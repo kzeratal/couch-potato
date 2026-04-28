@@ -23,6 +23,7 @@ export async function sync(argv: string[]): Promise<void> {
   );
   const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
   const concurrency = flags.concurrency ? Number(flags.concurrency) : 8;
+  const model = flags.model ? String(flags.model) : undefined;
 
   const cfg = await readConfig(shadow).catch(() => {
     throw new Error(`not a couch-potato shadow: ${shadow}`);
@@ -133,7 +134,7 @@ export async function sync(argv: string[]): Promise<void> {
   // 8. Wave-parallel scan: dirs at the same depth run concurrently
   // (bounded by --concurrency); deeper waves finish before shallower
   // ones start so parents find child summaries in cache.
-  const ctx = newScanContext(shadow, cfg, ig);
+  const ctx = newScanContext(shadow, cfg, ig, model);
   const { scanned: rescanned } = await scanWaves(ctx, [...affected], {
     force: true,
     concurrency,

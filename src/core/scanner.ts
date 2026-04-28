@@ -16,6 +16,7 @@ export interface ScanContext {
   cfg: ShadowConfig;
   cache: Map<string, DirSummary>;       // dirRel -> summary (so parents can reference children)
   ignore?: Ignore;                       // optional gitignore-style filter for files/subdirs
+  model?: string;
 }
 
 export interface ScanOneResult {
@@ -23,8 +24,13 @@ export interface ScanOneResult {
   summary?: DirSummary;
 }
 
-export function newScanContext(shadow: string, cfg: ShadowConfig, ig?: Ignore): ScanContext {
-  return { shadow, cfg, cache: new Map(), ignore: ig };
+export function newScanContext(
+  shadow: string,
+  cfg: ShadowConfig,
+  ig?: Ignore,
+  model?: string,
+): ScanContext {
+  return { shadow, cfg, cache: new Map(), ignore: ig, model };
 }
 
 export function depth(dirRel: string): number {
@@ -157,6 +163,7 @@ export async function scanOneDir(
     dirPath: displayDir(dirRel),
     files,
     childSummaries,
+    model: ctx.model,
   });
 
   const dirHash = await gitTreeHash(ctx.cfg.target, ctx.cfg.ref, dirRel);

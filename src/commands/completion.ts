@@ -32,6 +32,7 @@ _couch_potato() {
             '--shadow[shadow directory]:dir:_directories' \\
             '--scope[limit to subtree]:path:' \\
             '--concurrency[parallel workers]:N:' \\
+            '--model[claude --model for summarization]:name:' \\
             '--force[force rescan]'
           ;;
         status)
@@ -43,7 +44,8 @@ _couch_potato() {
           _arguments \\
             '--shadow[shadow directory]:dir:_directories' \\
             '--scope[limit to subtree]:path:' \\
-            '--concurrency[parallel workers]:N:'
+            '--concurrency[parallel workers]:N:' \\
+            '--model[claude --model for summarization]:name:'
           ;;
         work)
           _arguments \\
@@ -86,7 +88,7 @@ _couch_potato_complete() {
       COMPREPLY=( $(compgen -d -- "$cur") )
       return
       ;;
-    --scope|--concurrency)
+    --scope|--concurrency|--model)
       return
       ;;
   esac
@@ -101,13 +103,13 @@ _couch_potato_complete() {
       fi
       ;;
     scan)
-      COMPREPLY=( $(compgen -W "--shadow --scope --concurrency --force" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--shadow --scope --concurrency --model --force" -- "$cur") )
       ;;
     status)
       COMPREPLY=( $(compgen -W "--shadow --scope" -- "$cur") )
       ;;
     sync)
-      COMPREPLY=( $(compgen -W "--shadow --scope --concurrency" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--shadow --scope --concurrency --model" -- "$cur") )
       ;;
     work)
       COMPREPLY=( $(compgen -W "--real --shadow --skip-sync --print-prompt" -- "$cur") )
@@ -137,6 +139,7 @@ complete -c couch-potato -n '__fish_seen_subcommand_from init' -l shadow -r -F -
 complete -c couch-potato -n '__fish_seen_subcommand_from scan' -l shadow      -r -F -d 'Shadow directory'
 complete -c couch-potato -n '__fish_seen_subcommand_from scan' -l scope       -r    -d 'Limit to subtree'
 complete -c couch-potato -n '__fish_seen_subcommand_from scan' -l concurrency -r    -d 'Parallel workers'
+complete -c couch-potato -n '__fish_seen_subcommand_from scan' -l model       -r    -d 'claude --model for summarization'
 complete -c couch-potato -n '__fish_seen_subcommand_from scan' -l force            -d 'Force rescan'
 
 # status
@@ -147,6 +150,7 @@ complete -c couch-potato -n '__fish_seen_subcommand_from status' -l scope  -r   
 complete -c couch-potato -n '__fish_seen_subcommand_from sync' -l shadow      -r -F -d 'Shadow directory'
 complete -c couch-potato -n '__fish_seen_subcommand_from sync' -l scope       -r    -d 'Limit to subtree'
 complete -c couch-potato -n '__fish_seen_subcommand_from sync' -l concurrency -r    -d 'Parallel workers'
+complete -c couch-potato -n '__fish_seen_subcommand_from sync' -l model       -r    -d 'claude --model for summarization'
 
 # work
 complete -c couch-potato -n '__fish_seen_subcommand_from work' -l real         -r -F -d 'Real repo path'

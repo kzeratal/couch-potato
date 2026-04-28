@@ -11,9 +11,10 @@ export interface SummarizeInput {
   dirPath: string;                                  // "/" or "/sub/path"
   files: { name: string; content: string }[];       // direct files in this dir
   childSummaries: { name: string; summary: DirSummary }[]; // already-scanned children
+  model?: string;
 }
 
-const MODEL = "haiku";
+const DEFAULT_MODEL = "haiku";
 const MAX_FILE_CHARS = 12_000;
 
 const SYSTEM_PROMPT = `You are summarizing a single directory of a code repository so another AI agent can navigate the codebase efficiently.
@@ -42,7 +43,7 @@ const SCHEMA = {
 
 export async function summarizeDir(input: SummarizeInput): Promise<DirSummary> {
   const prompt = renderUserPrompt(input);
-  const raw = await runClaudeWithSchema(prompt);
+  const raw = await runClaudeWithSchema(prompt, input.model ?? DEFAULT_MODEL);
   return normalize(raw);
 }
 
@@ -53,10 +54,10 @@ interface ClaudeJsonResponse {
   total_cost_usd?: number;
 }
 
-async function runClaudeWithSchema(userPrompt: string): Promise<unknown> {
+async function runClaudeWithSchema(userPrompt: string, model: string): Promise<unknown> {
   const args = [
     "-p",
-    "--model", MODEL,
+    "--model", model,
     "--output-format", "json",
     "--json-schema", JSON.stringify(SCHEMA),
     "--append-system-prompt", SYSTEM_PROMPT,

@@ -14,6 +14,7 @@ export async function scan(argv: string[]): Promise<void> {
   const force = flags.force === true;
   const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
   const concurrency = flags.concurrency ? Number(flags.concurrency) : 8;
+  const model = flags.model ? String(flags.model) : undefined;
 
   const cfg = await readConfig(shadow).catch(() => {
     throw new Error(`not a couch-potato shadow: ${shadow}`);
@@ -23,7 +24,7 @@ export async function scan(argv: string[]): Promise<void> {
   const allMaps = await walkShadowMaps(shadow);
   const dirs = allMaps.filter((m) => inScope(m.dirRel, scope)).map((m) => m.dirRel);
 
-  const ctx = newScanContext(shadow, cfg, ig);
+  const ctx = newScanContext(shadow, cfg, ig, model);
   const { scanned } = await scanWaves(ctx, dirs, { force, concurrency });
 
   console.log("");
