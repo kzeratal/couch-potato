@@ -3,16 +3,23 @@ import { dirname } from "node:path";
 import type { DirSummary } from "./summarize.ts";
 
 export interface MapFrontmatter {
-  dir: string;                       // "/" or "/sub/path"
-  status: "placeholder" | "scanned"; // "placeholder" until first scan
+  dir: string;
+  status: "placeholder" | "scanned";
+  body: string;
+}
+
+export interface MapMeta {
   syncedAt: string | null;
   dirHash: string | null;
-  files: Map<string, string>;        // filename -> blob hash
-  children: Map<string, string | null>; // child dir name -> dir_hash (null if unscanned)
-  body: string;                      // content after frontmatter
+  files: Map<string, string>;
+  children: Map<string, string | null>;
 }
 
 const FENCE = "---";
+
+export function metaPathFor(mapPath: string): string {
+  return mapPath.replace(/_MAP\.md$/, "_MAP.meta.json");
+}
 
 export async function readMapFile(path: string): Promise<MapFrontmatter> {
   const raw = await readFile(path, "utf8");
@@ -36,56 +43,59 @@ export function parseMapFile(raw: string): MapFrontmatter {
 
   let dir = "/";
   let status: "placeholder" | "scanned" = "placeholder";
-  let syncedAt: string | null = null;
-  let dirHash: string | null = null;
-  const files = new Map<string, string>();
-  const children = new Map<string, string | null>();
-
-  let section: "top" | "files" | "children" = "top";
 
   for (const line of fmLines) {
-    if (line === "") continue;
-
-    if (!line.startsWith(" ")) {
-      // top-level key
-      const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/);
-      if (!m) continue;
-      const [, key, rawVal] = m;
-      const val = (rawVal ?? "").trim();
-      switch (key) {
-        case "dir": dir = val; section = "top"; break;
-        case "status": status = (val === "scanned" ? "scanned" : "placeholder"); section = "top"; break;
-        case "synced_at": syncedAt = val === "null" || val === "" ? null : val; section = "top"; break;
-        case "dir_hash": dirHash = val === "null" || val === "" ? null : val; section = "top"; break;
-        case "files": section = "files"; break;
-        case "children": section = "children"; break;
-      }
-    } else {
-      // indented entry
-      const m = line.match(/^\s+(\S+):\s*(.*)$/);
-      if (!m) continue;
-      const [, key, rawVal] = m;
-      const val = (rawVal ?? "").trim();
-      if (section === "files") {
-        files.set(key!, val);
-      } else if (section === "children") {
-        const name = key!.endsWith("/") ? key!.slice(0, -1) : key!;
-        children.set(name, val === "null" || val === "" ? null : val);
-      }
-    }
+    if (line === "" || line.startsWith(" ")) continue;
+    const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/);
+    if (!m) continue;
+    const [, key, rawVal] = m;
+    const val = (rawVal ?? "").trim();
+    if (key === "dir") dir = val;
+    else if (key === "status") status = val === "scanned" ? "scanned" : "placeholder";
   }
 
-  return { dir, status, syncedAt, dirHash, files, children, body };
+  return { dir, status, body };
+}
+
+export async function readMapMeta(mapPath: string): Promise<MapMeta | null> {
+  let raw: string;
+  try {
+    raw = await readFile(metaPathFor(mapPath), "utf8");
+  } catch {
+    return null;
+  }
+  const obj = JSON.parse(raw);
+  return {
+    syncedAt: obj.syncedAt ?? null,
+    dirHash: obj.dirHash ?? null,
+    files: new Map(Object.entries(obj.files ?? {}) as [string, string][]),
+    children: new Map(
+      Object.entries(obj.children ?? {}).map(
+        ([k, v]) => [k, v == null ? null : String(v)] as const,
+      ),
+    ),
+  };
+}
+
+export async function writeMapMeta(mapPath: string, meta: MapMeta): Promise<void> {
+  const obj = {
+    syncedAt: meta.syncedAt,
+    dirHash: meta.dirHash,
+    files: Object.fromEntries(
+      [...meta.files].sort(([a], [b]) => a.localeCompare(b)),
+    ),
+    children: Object.fromEntries(
+      [...meta.children].sort(([a], [b]) => a.localeCompare(b)),
+    ),
+  };
+  await mkdir(dirname(mapPath), { recursive: true });
+  await writeFile(metaPathFor(mapPath), JSON.stringify(obj, null, 2) + "\n", "utf8");
 }
 
 export interface WriteMapInput {
   path: string;             // absolute path to _MAP.md
   dir: string;              // "/" or "/sub/path"
   status: "placeholder" | "scanned";
-  syncedAt: string | null;
-  dirHash: string | null;
-  files: Map<string, string>;
-  children: Map<string, string | null>;
   summary: DirSummary | null;
 }
 
@@ -94,18 +104,6 @@ export async function writeMapFile(input: WriteMapInput): Promise<void> {
   lines.push("---");
   lines.push(`dir: ${input.dir}`);
   lines.push(`status: ${input.status}`);
-  lines.push(`synced_at: ${input.syncedAt ?? "null"}`);
-  lines.push(`dir_hash: ${input.dirHash ?? "null"}`);
-  lines.push("files:");
-  for (const [name, hash] of [...input.files].sort(([a], [b]) => a.localeCompare(b))) {
-    lines.push(`  ${name}: ${hash}`);
-  }
-  if (input.children.size > 0) {
-    lines.push("children:");
-    for (const [name, hash] of [...input.children].sort(([a], [b]) => a.localeCompare(b))) {
-      lines.push(`  ${name}/: ${hash ?? "null"}`);
-    }
-  }
   lines.push("---");
   lines.push("");
 
@@ -161,4 +159,3 @@ export function parseSummaryFromBody(body: string): DirSummary | null {
   }
   return summary;
 }
-

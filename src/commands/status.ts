@@ -3,7 +3,7 @@ import { posix, relative } from "node:path";
 import { parseArgs } from "../core/args.ts";
 import { readConfig } from "../core/config.ts";
 import { gitExec, lsTree, type TreeEntry } from "../core/git.ts";
-import { readMapFile } from "../core/map-file.ts";
+import { readMapFile, readMapMeta } from "../core/map-file.ts";
 import { resolveShadowFromCwd } from "../core/resolve.ts";
 import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
@@ -56,9 +56,13 @@ export async function status(argv: string[]): Promise<void> {
   const reports: DirReport[] = [];
   for (const m of shadowMaps) {
     const fm = await readMapFile(m.absPath);
+    const meta = await readMapMeta(m.absPath);
     const realFiles = realFilesByDir.get(m.dirRel) ?? new Map<string, string>();
-    const report = diffDir(m.dirRel, fm.status === "placeholder", fm.files, realFiles);
-    reports.push(report);
+    if (fm.status === "placeholder" || meta === null) {
+      reports.push({ dir: m.dirRel, state: "PLACEHOLDER", added: [], removed: [], modified: [] });
+      continue;
+    }
+    reports.push(diffDir(m.dirRel, false, meta.files, realFiles));
   }
 
   // Dirs that exist in real but have no _MAP.md (would need re-init/sync).

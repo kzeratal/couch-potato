@@ -4,7 +4,7 @@ import { parseArgs } from "../core/args.ts";
 import { readConfig } from "../core/config.ts";
 import { gitTreeHash, lsTree, type TreeEntry } from "../core/git.ts";
 import { isIgnored, loadIgnore } from "../core/ignore.ts";
-import { readMapFile } from "../core/map-file.ts";
+import { readMapFile, readMapMeta } from "../core/map-file.ts";
 import {
   mapPathFor,
   materializeDirs,
@@ -62,9 +62,6 @@ export async function sync(argv: string[]): Promise<void> {
   const orphanDirs = [...shadowDirSet].filter((d) => !realDirSet.has(d));
   const newDirs    = [...realDirSet].filter((d) => !shadowDirSet.has(d));
 
-  // 4. Detect stale dirs via dir_hash comparison.
-  // git tree hash is derived from sorted (mode+type+hash+name) entries,
-  // so a matching dir_hash mathematically implies all per-file hashes match too.
   const staleDirs: string[] = [];
   for (const m of shadowMaps) {
     if (orphanDirs.includes(m.dirRel)) continue;
@@ -73,8 +70,9 @@ export async function sync(argv: string[]): Promise<void> {
       staleDirs.push(m.dirRel);
       continue;
     }
+    const meta = await readMapMeta(m.absPath);
     const realHash = await gitTreeHash(cfg.target, cfg.ref, m.dirRel).catch(() => null);
-    if (!realHash || realHash !== fm.dirHash) staleDirs.push(m.dirRel);
+    if (!realHash || !meta || realHash !== meta.dirHash) staleDirs.push(m.dirRel);
   }
 
   // 5. Affected = stale ∪ new ∪ ancestors of any changed/placeholder dir.

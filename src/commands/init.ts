@@ -120,9 +120,9 @@ as you run \`couch-potato sync --scope <subpath>\` over different areas.
 
 1. Start at the root \`_MAP.md\` for a global index.
 2. Drill into subdirectories' \`_MAP.md\` only when you need detail.
-3. Each \`_MAP.md\` records git blob hashes per file. If they don't match the
-   real repo's current \`git ls-tree HEAD\` output, the map is **stale** for
-   that file — read the real source instead of trusting the summary.
+3. Maps are point-in-time snapshots. If real source disagrees with what a
+   \`_MAP.md\` describes, trust the real source — the map is stale until the
+   next \`couch-potato sync\`.
 
 ## When implementing
 

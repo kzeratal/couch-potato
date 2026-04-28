@@ -7,6 +7,7 @@ import {
   parseSummaryFromBody,
   readMapFile,
   writeMapFile,
+  writeMapMeta,
 } from "./map-file.ts";
 import { mapPathFor } from "./mirror.ts";
 import { type DirSummary, summarizeDir } from "./summarize.ts";
@@ -179,11 +180,13 @@ export async function scanOneDir(
     path: mapPath,
     dir: fm.dir,
     status: "scanned",
+    summary,
+  });
+  await writeMapMeta(mapPath, {
     syncedAt: new Date().toISOString(),
     dirHash,
     files: freshFiles,
     children: updatedChildren,
-    summary,
   });
 
   ctx.cache.set(dirRel, summary);

@@ -112,16 +112,16 @@ The shadow contains a directory tree mirror of this repo. Each directory has a \
 - \`deps\` — important dependencies on other directories or external packages
 - \`gotchas\` — non-obvious constraints, ordering requirements, surprising behavior
 
-Each \`_MAP.md\` also records git blob hashes per file. If those hashes don't match the real repo's current state, the map is stale for that file — read the real source for ground truth.
+Maps are point-in-time snapshots. If real source disagrees with what the map describes, trust the real source — the map is stale until the next \`couch-potato sync\`.
 
 ## Workflow rules
 
 1. **Navigate via the map first.** Before grep/glob/read on source for orientation, Read \`<shadow>/<dir>/_MAP.md\`. The map's \`entries\`, \`deps\`, and \`gotchas\` are designed to short-circuit exploration.
 2. **The shadow is read-only.** Never Edit/Write inside \`${shadow}\`. Real code lives in CWD.
 3. **Edit normally in CWD.** This session's CWD is the real repo. Edit/Write/Bash work as usual against real source.
-4. **Maps are git-blob-hash-pinned.** If you Read a real file and its content seems different from what the map describes, trust the file (current source) over the map (snapshot at last scan).
+4. **Maps are point-in-time snapshots.** If you Read a real file and its content seems different from what the map describes, trust the file (current source) over the map.
 5. **Sync on completion.** After a task is done, the wrapper will run \`couch-potato sync\` automatically. You don't need to call it manually unless the user explicitly asks.
-6. **Brief subagents about the map.** Subagents (Explore, general-purpose, etc.) do NOT inherit this system prompt. When delegating exploration or research, include in the subagent prompt: the shadow path \`${shadow}\`, the instruction to read \`_MAP.md\` first before grep/read on real source, and the rule that maps are git-blob-hash-pinned (trust real source on mismatch). Without this briefing the subagent will fall back to blind grep/glob.
+6. **Brief subagents about the map.** Subagents (Explore, general-purpose, etc.) do NOT inherit this system prompt. When delegating exploration or research, include in the subagent prompt: the shadow path \`${shadow}\`, the instruction to read \`_MAP.md\` first before grep/read on real source, and the rule that maps are point-in-time snapshots (trust real source on mismatch). Without this briefing the subagent will fall back to blind grep/glob.
 
 ## Root map (inlined for fast bootstrap)
 
