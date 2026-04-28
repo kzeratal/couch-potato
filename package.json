@@ -1,6 +1,6 @@
 {
   "name": "@skzeratal/couch-potato",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Code virtual map generator for Claude Code — shadow-repo navigation maps without polluting the product repo.",
   "keywords": [
     "claude",
