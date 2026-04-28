@@ -1,5 +1,18 @@
 # couch-potato
 
+## Plain markdown for LLM-facing text
+
+For any markdown that ships to an LLM — system prompts in `src/commands/work.ts`,
+the LLM prompt in `src/core/summarize.ts`, the shadow `CLAUDE.md` template
+written by `src/commands/init.ts`, and any generated `_MAP.md` content — do not
+use `**bold**` decoration. The model treats it as marginal statistical signal
+at best while costing tokens; emphasis comes from sentence structure, position,
+section headers, and numbered lists. Reserve markdown decoration for
+human-targeted docs only (README and similar).
+
+This file is itself loaded into Claude's context via Claude Code's CLAUDE.md
+mechanism, so the rule applies here too.
+
 ## No backward compatibility
 
 When changing on-disk formats, CLI flags, config schemas, or internal APIs:
