@@ -3,6 +3,7 @@ import { init } from "./commands/init.ts";
 import { scan } from "./commands/scan.ts";
 import { status } from "./commands/status.ts";
 import { sync } from "./commands/sync.ts";
+import { version } from "./commands/version.ts";
 import { work } from "./commands/work.ts";
 
 const HELP = `couch-potato — code virtual map for Claude
@@ -14,6 +15,7 @@ Usage:
   couch-potato sync   [--shadow <dir>] [--scope <subpath>]
   couch-potato work   [--real <repo>] [--shadow <dir>] [--skip-sync] [-- <claude args>]
   couch-potato completion <zsh|bash|fish>
+  couch-potato version
 
 Options:
   --shadow <dir>   Override shadow directory (default: ~/couch-potato/projects/<repo-name>)
@@ -24,6 +26,7 @@ Options:
   --skip-sync      (work) don't auto-sync after claude exits
   --print-prompt   (work) print the system prompt that would be injected and exit
   -h, --help       Show this help
+  -v, --version    Show version
 
 Notes:
   'couch-potato work' forwards any unrecognized flag/arg to the spawned
@@ -36,6 +39,11 @@ export async function run(argv: string[]): Promise<void> {
 
   if (!cmd || cmd === "-h" || cmd === "--help") {
     process.stdout.write(HELP);
+    return;
+  }
+
+  if (cmd === "-v" || cmd === "--version") {
+    version();
     return;
   }
 
@@ -57,6 +65,9 @@ export async function run(argv: string[]): Promise<void> {
       return;
     case "completion":
       await completion(rest);
+      return;
+    case "version":
+      version();
       return;
     default:
       throw new Error(`unknown command: ${cmd}\n\n${HELP}`);

@@ -9,6 +9,7 @@ _couch_potato() {
     'sync:Refresh stale/new/orphan dirs in shadow'
     'work:Spawn claude in real repo with shadow injected'
     'completion:Print shell completion script'
+    'version:Print version'
   )
 
   _arguments -C \\
@@ -72,7 +73,7 @@ _couch_potato_complete() {
     cword=$COMP_CWORD
   }
 
-  local subcmds="init scan status sync work completion"
+  local subcmds="init scan status sync work completion version"
 
   if [[ $cword -eq 1 ]]; then
     COMPREPLY=( $(compgen -W "$subcmds" -- "$cur") )
@@ -126,6 +127,7 @@ complete -c couch-potato -n '__fish_use_subcommand' -a status     -d 'Diff shado
 complete -c couch-potato -n '__fish_use_subcommand' -a sync       -d 'Refresh stale/new/orphan dirs in shadow'
 complete -c couch-potato -n '__fish_use_subcommand' -a work       -d 'Spawn claude in real repo with shadow injected'
 complete -c couch-potato -n '__fish_use_subcommand' -a completion -d 'Print shell completion script'
+complete -c couch-potato -n '__fish_use_subcommand' -a version    -d 'Print version'
 
 # init: positional dir
 complete -c couch-potato -n '__fish_seen_subcommand_from init' -a '(__fish_complete_directories)'
