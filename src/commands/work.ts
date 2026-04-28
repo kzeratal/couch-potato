@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { configPath, readConfig, type ShadowConfig } from "../core/config.ts";
-import { gitToplevel, isGitRepo } from "../core/git.ts";
-import { absPath, defaultShadowFor, projectsRoot } from "../core/paths.ts";
+import { readConfig, type ShadowConfig } from "../core/config.ts";
+import { absPath } from "../core/paths.ts";
+import { resolveReal, resolveShadow } from "../core/resolve.ts";
 import { sync as runSync } from "./sync.ts";
 
 interface WorkArgs {
@@ -90,54 +90,6 @@ export async function work(argv: string[]): Promise<void> {
     console.log("");
     console.log("=== syncing maps ===");
     await runSync(["--shadow", shadow]);
-  }
-}
-
-async function resolveReal(input: string | undefined): Promise<string> {
-  const start = input ? absPath(input) : process.cwd();
-  const s = await stat(start).catch(() => null);
-  if (!s?.isDirectory()) {
-    throw new Error(`not a directory: ${start}`);
-  }
-  if (!(await isGitRepo(start))) {
-    throw new Error(`not a git repo: ${start}\n(couch-potato work must be run inside a git repository)`);
-  }
-  return await gitToplevel(start);
-}
-
-/**
- * Find the shadow that targets `real`. Priority:
- *   1. Default-named shadow (~/couch-potato/projects/<basename>)
- *   2. Scan ~/couch-potato/projects/* for any whose config.target matches.
- */
-async function resolveShadow(real: string): Promise<string> {
-  const def = defaultShadowFor(real);
-  if (await isShadowFor(def, real)) return def;
-
-  const root = projectsRoot();
-  let entries: string[];
-  try {
-    entries = await readdir(root);
-  } catch {
-    throw new Error(
-      `no shadow found for ${real}\n(run \`couch-potato init ${real}\` first)`,
-    );
-  }
-  for (const name of entries) {
-    const candidate = join(root, name);
-    if (await isShadowFor(candidate, real)) return candidate;
-  }
-  throw new Error(
-    `no shadow found for ${real}\n(run \`couch-potato init ${real}\` first)`,
-  );
-}
-
-async function isShadowFor(shadow: string, real: string): Promise<boolean> {
-  try {
-    const cfg = JSON.parse(await readFile(configPath(shadow), "utf8")) as ShadowConfig;
-    return cfg.target === real;
-  } catch {
-    return false;
   }
 }
 

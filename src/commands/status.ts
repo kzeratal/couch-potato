@@ -4,7 +4,7 @@ import { parseArgs } from "../core/args.ts";
 import { readConfig } from "../core/config.ts";
 import { gitExec, lsTree, type TreeEntry } from "../core/git.ts";
 import { readMapFile } from "../core/map-file.ts";
-import { absPath } from "../core/paths.ts";
+import { resolveShadowFromCwd } from "../core/resolve.ts";
 import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
 
@@ -20,7 +20,9 @@ interface DirReport {
 
 export async function status(argv: string[]): Promise<void> {
   const { flags } = parseArgs(argv);
-  const shadow = flags.shadow ? absPath(String(flags.shadow)) : process.cwd();
+  const shadow = await resolveShadowFromCwd(
+    flags.shadow ? String(flags.shadow) : undefined,
+  );
   const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
 
   const cfg = await readConfig(shadow).catch(() => {

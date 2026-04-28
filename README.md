@@ -35,13 +35,14 @@ couch-potato init /path/to/repo
 # 1. Mirror the repo's directory tree into a shadow (cheap, no LLM)
 couch-potato init /path/to/your-repo
 
-# 2. Fill the map (or just a subtree) with LLM-generated summaries
-couch-potato sync --shadow ~/couch-potato/projects/your-repo
+# 2. Fill the map (or just a subtree) with LLM-generated summaries.
+#    From inside the real repo, sync auto-resolves the matching shadow.
+cd /path/to/your-repo
+couch-potato sync
 # or incrementally:
-couch-potato sync --shadow ~/couch-potato/projects/your-repo --scope src/feature
+couch-potato sync --scope src/feature
 
 # 3. Work with Claude — wrapper auto-injects the map and auto-syncs on exit
-cd /path/to/your-repo
 couch-potato work
 ```
 
@@ -56,7 +57,7 @@ couch-potato work
 | `couch-potato work` | Spawn `claude` in the real repo with the shadow's root map injected as system prompt. |
 | `couch-potato completion <shell>` | Print zsh / bash / fish completion script. |
 
-Common flags: `--shadow <dir>` overrides shadow path; `--concurrency N` (scan/sync) sets parallel workers; `--scope <path>` limits the operation to a subtree.
+`scan`, `sync`, `status`, and `work` auto-resolve the shadow when run from inside the real repo (or from the shadow itself). Pass `--shadow <dir>` to override; `--concurrency N` (scan/sync) sets parallel workers; `--scope <path>` limits the operation to a subtree.
 
 ## Shell completion
 

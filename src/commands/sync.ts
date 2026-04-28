@@ -11,14 +11,16 @@ import {
   planMirror,
   writePlaceholderMap,
 } from "../core/mirror.ts";
-import { absPath } from "../core/paths.ts";
+import { resolveShadowFromCwd } from "../core/resolve.ts";
 import { displayDir, newScanContext, scanWaves } from "../core/scanner.ts";
 import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
 
 export async function sync(argv: string[]): Promise<void> {
   const { flags } = parseArgs(argv);
-  const shadow = flags.shadow ? absPath(String(flags.shadow)) : process.cwd();
+  const shadow = await resolveShadowFromCwd(
+    flags.shadow ? String(flags.shadow) : undefined,
+  );
   const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
   const concurrency = flags.concurrency ? Number(flags.concurrency) : 8;
 

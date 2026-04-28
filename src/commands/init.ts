@@ -1,5 +1,5 @@
 import { mkdir, stat, writeFile } from "node:fs/promises";
-import { join, posix, relative } from "node:path";
+import { join, posix } from "node:path";
 import { parseArgs } from "../core/args.ts";
 import { writeConfig } from "../core/config.ts";
 import { gitToplevel, isGitRepo } from "../core/git.ts";
@@ -98,7 +98,7 @@ export async function init(argv: string[]): Promise<void> {
   console.log(`wrote ${dirCount} _MAP.md placeholders`);
   console.log(`ignore patterns: .couch-potato/ignore (edit to customize)`);
   console.log("");
-  console.log("next: couch-potato sync --shadow " + relative(process.cwd(), shadow));
+  console.log(`next: cd ${real} && couch-potato sync`);
   console.log("      (or `couch-potato sync --scope <subpath>` to scan incrementally)");
 }
 
