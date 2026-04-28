@@ -2,7 +2,7 @@ import { parseArgs } from "../core/args.ts";
 import { readConfig } from "../core/config.ts";
 import { loadIgnore } from "../core/ignore.ts";
 import { absPath } from "../core/paths.ts";
-import { depth, displayDir, newScanContext, scanOneDir } from "../core/scanner.ts";
+import { newScanContext, scanWaves } from "../core/scanner.ts";
 import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
 
@@ -11,6 +11,7 @@ export async function scan(argv: string[]): Promise<void> {
   const shadow = flags.shadow ? absPath(String(flags.shadow)) : process.cwd();
   const force = flags.force === true;
   const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
+  const concurrency = flags.concurrency ? Number(flags.concurrency) : 8;
 
   const cfg = await readConfig(shadow).catch(() => {
     throw new Error(`not a couch-potato shadow: ${shadow}`);
@@ -18,26 +19,11 @@ export async function scan(argv: string[]): Promise<void> {
 
   const ig = await loadIgnore(shadow);
   const allMaps = await walkShadowMaps(shadow);
-  const maps = allMaps.filter((m) => inScope(m.dirRel, scope));
-  // Bottom-up: deepest first so children are scanned before parents.
-  maps.sort((a, b) => depth(b.dirRel) - depth(a.dirRel) || a.dirRel.localeCompare(b.dirRel));
+  const dirs = allMaps.filter((m) => inScope(m.dirRel, scope)).map((m) => m.dirRel);
 
   const ctx = newScanContext(shadow, cfg, ig);
-
-  let scanned = 0;
-  let skipped = 0;
-
-  for (const m of maps) {
-    const result = await scanOneDir(ctx, m.dirRel, { force });
-    if (result.scanned) {
-      console.log(`scan  ${displayDir(m.dirRel)}`);
-      scanned++;
-    } else {
-      console.log(`skip  ${displayDir(m.dirRel)}  (already scanned)`);
-      skipped++;
-    }
-  }
+  const { scanned } = await scanWaves(ctx, dirs, { force, concurrency });
 
   console.log("");
-  console.log(`done: ${scanned} scanned, ${skipped} skipped`);
+  console.log(`done: ${scanned} scanned, ${dirs.length - scanned} skipped (concurrency: ${concurrency})`);
 }

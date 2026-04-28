@@ -1,17 +1,48 @@
 {
-  "name": "couch-potato",
+  "name": "@skzeratal/couch-potato",
   "version": "0.0.1",
-  "description": "Code virtual map generator — shadow-repo metadata overlay for Claude Code",
+  "description": "Code virtual map generator for Claude Code — shadow-repo navigation maps without polluting the product repo.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "codemap",
+    "navigation",
+    "ai",
+    "llm"
+  ],
+  "author": "kzeratal <skzeratal@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kzeratal/couch-potato.git"
+  },
+  "homepage": "https://github.com/kzeratal/couch-potato#readme",
+  "bugs": {
+    "url": "https://github.com/kzeratal/couch-potato/issues"
+  },
   "type": "module",
+  "main": "dist/couch-potato.js",
   "bin": {
-    "couch-potato": "./bin/couch-potato.ts"
+    "couch-potato": "dist/couch-potato.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "dev": "bun run bin/couch-potato.ts",
-    "typecheck": "tsc --noEmit"
+    "build": "bun run scripts/build.ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run typecheck && bun run build"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.91.1",
     "ignore": "^7.0.5"
   },
   "devDependencies": {

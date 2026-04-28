@@ -17,6 +17,7 @@ Options:
   --shadow <dir>   Override shadow directory (default: ~/couch-potato/projects/<repo-name>)
   --scope <path>   Limit operation to a subtree (e.g. src/inspector). Coverage grows
                    incrementally as you scope-sync different areas of the same shadow.
+  --concurrency N  (scan/sync) parallel workers per depth wave (default 8)
   --force          (scan) force rescan of already-scanned dirs
   --skip-sync      (work) don't auto-sync after claude exits
   --print-prompt   (work) print the system prompt that would be injected and exit

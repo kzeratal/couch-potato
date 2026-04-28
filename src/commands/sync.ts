@@ -7,12 +7,12 @@ import { isIgnored, loadIgnore } from "../core/ignore.ts";
 import { readMapFile } from "../core/map-file.ts";
 import {
   mapPathFor,
-  materializeMirror,
+  materializeDirs,
   planMirror,
   writePlaceholderMap,
 } from "../core/mirror.ts";
 import { absPath } from "../core/paths.ts";
-import { depth, displayDir, newScanContext, scanOneDir } from "../core/scanner.ts";
+import { displayDir, newScanContext, scanWaves } from "../core/scanner.ts";
 import { inScope, normalizeScope } from "../core/scope.ts";
 import { walkShadowMaps } from "../core/walk.ts";
 
@@ -20,6 +20,7 @@ export async function sync(argv: string[]): Promise<void> {
   const { flags } = parseArgs(argv);
   const shadow = flags.shadow ? absPath(String(flags.shadow)) : process.cwd();
   const scope = normalizeScope(flags.scope ? String(flags.scope) : undefined);
+  const concurrency = flags.concurrency ? Number(flags.concurrency) : 8;
 
   const cfg = await readConfig(shadow).catch(() => {
     throw new Error(`not a couch-potato shadow: ${shadow}`);
@@ -101,9 +102,7 @@ export async function sync(argv: string[]): Promise<void> {
   // 7. Bootstrap new dirs (mkdir + placeholder _MAP.md with file hashes).
   if (newDirs.length > 0) {
     const plan = await planMirror(cfg.target, cfg.ref, ig);
-    // Restrict plan to new dirs only — but materialize includes all dirs which is fine
-    // since materializeMirror is idempotent (recursive mkdir).
-    await materializeMirror(shadow, plan);
+    await materializeDirs(shadow, newDirs);
 
     const filesByDir = groupFilesByDir(plan.files);
     const childrenByDir = groupChildrenByDir(plan.dirs);
@@ -116,21 +115,17 @@ export async function sync(argv: string[]): Promise<void> {
     }
   }
 
-  // 8. Bottom-up scan all affected dirs (force=true so already-scanned ones get refreshed).
-  const ordered = [...affected].sort(
-    (a, b) => depth(b) - depth(a) || a.localeCompare(b),
-  );
-
+  // 8. Wave-parallel scan: dirs at the same depth run concurrently
+  // (bounded by --concurrency); deeper waves finish before shallower
+  // ones start so parents find child summaries in cache.
   const ctx = newScanContext(shadow, cfg, ig);
-  let rescanned = 0;
-  for (const d of ordered) {
-    console.log(`scan  ${displayDir(d)}`);
-    await scanOneDir(ctx, d, { force: true });
-    rescanned++;
-  }
+  const { scanned: rescanned } = await scanWaves(ctx, [...affected], {
+    force: true,
+    concurrency,
+  });
 
   console.log("");
-  console.log(`done: ${rescanned} rescanned, ${orphanDirs.length} deleted`);
+  console.log(`done: ${rescanned} rescanned, ${orphanDirs.length} deleted (concurrency: ${concurrency})`);
 }
 
 function ancestors(dirRel: string): string[] {

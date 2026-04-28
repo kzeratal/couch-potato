@@ -31,8 +31,8 @@ export async function planMirror(
   return { dirs: [...dirs].sort(), files };
 }
 
-export async function materializeMirror(shadow: string, plan: MirrorPlan): Promise<void> {
-  for (const d of plan.dirs) {
+export async function materializeDirs(shadow: string, dirs: string[]): Promise<void> {
+  for (const d of dirs) {
     const full = d === "" ? shadow : join(shadow, d);
     await mkdir(full, { recursive: true });
   }

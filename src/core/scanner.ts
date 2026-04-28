@@ -37,6 +37,72 @@ export function displayDir(dirRel: string): string {
 }
 
 /**
+ * Run `fn` over `items` in parallel with at most `limit` concurrent workers.
+ * Each worker grabs the next free index — O(1) dispatch, no array shuffling.
+ */
+async function runWithLimit<T>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= items.length) return;
+        await fn(items[i]!, i);
+      }
+    },
+  );
+  await Promise.all(workers);
+}
+
+/**
+ * Scan a list of dirs bottom-up, parallelizing within each depth level.
+ * Children at depth d+1 finish before parents at depth d start, so parents
+ * always find child summaries in `ctx.cache`.
+ *
+ * Note: a wave finishes only when its slowest dir does, so workers can sit
+ * idle on unbalanced waves. A fully topological scheduler (each dir ready
+ * when its direct children are done) would eliminate that idle time but is
+ * more complex; the wave model is simple, correct, and good enough.
+ */
+export async function scanWaves(
+  ctx: ScanContext,
+  dirs: string[],
+  opts: { force?: boolean; concurrency?: number } = {},
+): Promise<{ scanned: number }> {
+  const concurrency = Math.max(1, opts.concurrency ?? 8);
+
+  // One sort gives bottom-up order; consecutive same-depth runs are waves.
+  const sorted = dirs.slice().sort(
+    (a, b) => depth(b) - depth(a) || a.localeCompare(b),
+  );
+
+  let scanned = 0;
+  let i = 0;
+  while (i < sorted.length) {
+    const d = depth(sorted[i]!);
+    let j = i + 1;
+    while (j < sorted.length && depth(sorted[j]!) === d) j++;
+    const wave = sorted.slice(i, j);
+
+    const results = new Array<ScanOneResult>(wave.length);
+    await runWithLimit(wave, concurrency, async (dirRel, idx) => {
+      console.log(`scan  ${displayDir(dirRel)}`);
+      results[idx] = await scanOneDir(ctx, dirRel, { force: opts.force });
+    });
+    scanned += results.reduce((n, r) => n + (r.scanned ? 1 : 0), 0);
+
+    i = j;
+  }
+
+  return { scanned };
+}
+
+/**
  * Scan a single directory: read its files + child summaries, call LLM,
  * write _MAP.md, populate cache for parents to reference.
  *

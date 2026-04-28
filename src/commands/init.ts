@@ -6,7 +6,7 @@ import { gitToplevel, isGitRepo } from "../core/git.ts";
 import { loadIgnore, writeDefaultIgnore } from "../core/ignore.ts";
 import {
   mapPathFor,
-  materializeMirror,
+  materializeDirs,
   planMirror,
   writePlaceholderMap,
 } from "../core/mirror.ts";
@@ -52,7 +52,7 @@ export async function init(argv: string[]): Promise<void> {
 
   const ig = await loadIgnore(shadow);
   const plan = await planMirror(real, "HEAD", ig);
-  await materializeMirror(shadow, plan);
+  await materializeDirs(shadow, plan.dirs);
 
   // Group files by directory.
   const filesByDir = new Map<string, typeof plan.files>();
