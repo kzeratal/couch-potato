@@ -12,7 +12,7 @@ files just to build a mental model. couch-potato pre-builds that model:
 
 - Per-directory summary: `purpose`, `entries`, `deps`, `gotchas`.
 - Hash-pinned to git blob hashes — staleness is mathematically detectable.
-- Shadow lives at `~/couch-potato/projects/<repo-name>/`, never in the product repo.
+- Shadow lives at `~/.couch-potato/projects/<repo-name>/`, never in the product repo.
 - A wrapper command spawns `claude` with the root map injected into the
   system prompt; auto-syncs changed maps when the session ends.
 
@@ -28,6 +28,8 @@ npx @skzeratal/couch-potato init /path/to/repo
 npm install -g @skzeratal/couch-potato
 couch-potato init /path/to/repo
 ```
+
+> **Upgrading:** the default shadow root moved from `~/couch-potato` to `~/.couch-potato`. If you have existing shadows, run `mv ~/couch-potato ~/.couch-potato`.
 
 ## Quick start
 

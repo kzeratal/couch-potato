@@ -3,11 +3,11 @@ import { basename, isAbsolute, resolve } from "node:path";
 
 export function defaultShadowFor(realRepoPath: string): string {
   const name = basename(realRepoPath);
-  return resolve(homedir(), "couch-potato", "projects", name);
+  return resolve(homedir(), ".couch-potato", "projects", name);
 }
 
 export function projectsRoot(): string {
-  return resolve(homedir(), "couch-potato", "projects");
+  return resolve(homedir(), ".couch-potato", "projects");
 }
 
 export function absPath(p: string): string {

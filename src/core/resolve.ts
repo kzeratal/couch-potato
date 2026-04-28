@@ -18,8 +18,8 @@ export async function resolveReal(input: string | undefined): Promise<string> {
 
 /**
  * Find the shadow that targets `real`. Priority:
- *   1. Default-named shadow (~/couch-potato/projects/<basename>)
- *   2. Scan ~/couch-potato/projects/* for any whose config.target matches.
+ *   1. Default-named shadow (~/.couch-potato/projects/<basename>)
+ *   2. Scan ~/.couch-potato/projects/* for any whose config.target matches.
  */
 export async function resolveShadow(real: string): Promise<string> {
   const def = defaultShadowFor(real);
