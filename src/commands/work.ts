@@ -121,6 +121,7 @@ Each \`_MAP.md\` also records git blob hashes per file. If those hashes don't ma
 3. **Edit normally in CWD.** This session's CWD is the real repo. Edit/Write/Bash work as usual against real source.
 4. **Maps are git-blob-hash-pinned.** If you Read a real file and its content seems different from what the map describes, trust the file (current source) over the map (snapshot at last scan).
 5. **Sync on completion.** After a task is done, the wrapper will run \`couch-potato sync\` automatically. You don't need to call it manually unless the user explicitly asks.
+6. **Brief subagents about the map.** Subagents (Explore, general-purpose, etc.) do NOT inherit this system prompt. When delegating exploration or research, include in the subagent prompt: the shadow path \`${shadow}\`, the instruction to read \`_MAP.md\` first before grep/read on real source, and the rule that maps are git-blob-hash-pinned (trust real source on mismatch). Without this briefing the subagent will fall back to blind grep/glob.
 
 ## Root map (inlined for fast bootstrap)
 
