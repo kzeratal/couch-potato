@@ -101,8 +101,12 @@ export async function sync(argv: string[]): Promise<void> {
     return;
   }
 
-  // 6. Delete orphans first.
-  for (const d of orphanDirs) {
+  // 6. Delete orphans first — deepest-first so a parent's rmdir sees its
+  // children already gone (rmdir only succeeds on empty dirs and is not
+  // retried). Sort by path length: any descendant is strictly longer than
+  // its ancestor, so length-desc puts children before parents.
+  const orphansDeepFirst = [...orphanDirs].sort((a, b) => b.length - a.length);
+  for (const d of orphansDeepFirst) {
     const mapPath = mapPathFor(shadow, d);
     await rm(mapPath, { force: true });
     // Try removing the now-empty shadow dir; ignore if non-empty.
