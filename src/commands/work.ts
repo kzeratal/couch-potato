@@ -83,10 +83,8 @@ export async function work(argv: string[]): Promise<void> {
 }
 
 function buildSystemPrompt(shadow: string): string {
-  return `# couch-potato
-
-Maps at \`${shadow}/<dir>/_MAP.md\` (purpose / entries / deps / gotchas):
-- Read before grep/glob on source for orientation.
+  return `Maps at \`${shadow}/<dir>/_MAP.md\`:
+- Read before grep/glob.
 - Shadow is read-only — edit in CWD.
 - Subagents don't inherit this; pass them the shadow path and tell them to Read \`_MAP.md\` first.
 `;
