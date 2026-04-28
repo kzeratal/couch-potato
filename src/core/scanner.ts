@@ -146,11 +146,10 @@ export async function scanOneDir(
     }),
   );
 
-  // Child summaries from cache (assumes bottom-up order).
   const childSummaries: { name: string; summary: DirSummary }[] = [];
   for (const childName of freshChildNames) {
     const childRel = dirRel === "" ? childName : posix.join(dirRel, childName);
-    const summary = ctx.cache.get(childRel);
+    const summary = await loadChildSummary(ctx, childRel);
     if (summary) childSummaries.push({ name: childName, summary });
   }
 
@@ -182,4 +181,14 @@ export async function scanOneDir(
 
   ctx.cache.set(dirRel, summary);
   return { scanned: true, summary };
+}
+
+async function loadChildSummary(ctx: ScanContext, childRel: string): Promise<DirSummary | undefined> {
+  const cached = ctx.cache.get(childRel);
+  if (cached) return cached;
+  const fm = await readMapFile(mapPathFor(ctx.shadow, childRel)).catch(() => null);
+  if (fm?.status !== "scanned") return undefined;
+  const parsed = parseSummaryFromBody(fm.body) ?? undefined;
+  if (parsed) ctx.cache.set(childRel, parsed);
+  return parsed;
 }

@@ -47,6 +47,15 @@ export async function sync(argv: string[]): Promise<void> {
     if (!inScope(e.path, scope)) continue;
     if (e.type === "tree") realDirSet.add(e.path);
   }
+  const placeholderScopeAncestors = new Set<string>();
+  if (scope) {
+    realDirSet.add(scope);
+    for (const a of ancestors(scope)) {
+      realDirSet.add(a);
+      const aMap = await readMapFile(mapPathFor(shadow, a)).catch(() => null);
+      if (aMap?.status === "placeholder") placeholderScopeAncestors.add(a);
+    }
+  }
 
   // 3. Classify dirs.
   const orphanDirs = [...shadowDirSet].filter((d) => !realDirSet.has(d));
@@ -67,11 +76,11 @@ export async function sync(argv: string[]): Promise<void> {
     if (!realHash || realHash !== fm.dirHash) staleDirs.push(m.dirRel);
   }
 
-  // 5. Affected = stale ∪ new ∪ (ancestors of stale ∪ new ∪ orphan, restricted to scope).
-  const affected = new Set<string>([...staleDirs, ...newDirs]);
-  for (const d of [...staleDirs, ...newDirs, ...orphanDirs]) {
+  // 5. Affected = stale ∪ new ∪ ancestors of any changed/placeholder dir.
+  const affected = new Set<string>([...staleDirs, ...newDirs, ...placeholderScopeAncestors]);
+  for (const d of [...staleDirs, ...newDirs, ...orphanDirs, ...placeholderScopeAncestors]) {
     for (const a of ancestors(d)) {
-      if (inScope(a, scope) && realDirSet.has(a)) affected.add(a);
+      if (realDirSet.has(a)) affected.add(a);
     }
   }
 
