@@ -13,7 +13,7 @@ Usage:
   couch-potato scan   [--shadow <dir>] [--scope <subpath>] [--force]
   couch-potato status [--shadow <dir>] [--scope <subpath>]
   couch-potato sync   [--shadow <dir>] [--scope <subpath>]
-  couch-potato work   [--real <repo>] [--shadow <dir>] [--skip-sync] [-- <claude args>]
+  couch-potato work   [--real <repo>] [--shadow <dir>] [-- <claude args>]
   couch-potato completion <zsh|bash|fish>
   couch-potato version
 
@@ -26,7 +26,6 @@ Options:
                    Use a 1M-context model (e.g. 'claude-sonnet-4-5[1m]') for
                    directories with many large files.
   --force          (scan) force rescan of already-scanned dirs
-  --skip-sync      (work) don't auto-sync after claude exits
   --print-prompt   (work) print the system prompt that would be injected and exit
   -h, --help       Show this help
   -v, --version    Show version

@@ -51,7 +51,6 @@ _couch_potato() {
           _arguments \\
             '--real[real repo path]:dir:_directories' \\
             '--shadow[shadow directory]:dir:_directories' \\
-            '--skip-sync[do not auto-sync after claude exits]' \\
             '--print-prompt[print system prompt and exit]'
           ;;
         completion)
@@ -112,7 +111,7 @@ _couch_potato_complete() {
       COMPREPLY=( $(compgen -W "--shadow --scope --concurrency --model" -- "$cur") )
       ;;
     work)
-      COMPREPLY=( $(compgen -W "--real --shadow --skip-sync --print-prompt" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--real --shadow --print-prompt" -- "$cur") )
       ;;
     completion)
       COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
@@ -155,7 +154,6 @@ complete -c couch-potato -n '__fish_seen_subcommand_from sync' -l model       -r
 # work
 complete -c couch-potato -n '__fish_seen_subcommand_from work' -l real         -r -F -d 'Real repo path'
 complete -c couch-potato -n '__fish_seen_subcommand_from work' -l shadow       -r -F -d 'Shadow directory'
-complete -c couch-potato -n '__fish_seen_subcommand_from work' -l skip-sync          -d 'Skip auto-sync'
 complete -c couch-potato -n '__fish_seen_subcommand_from work' -l print-prompt       -d 'Print prompt'
 
 # completion

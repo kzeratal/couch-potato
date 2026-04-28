@@ -13,8 +13,9 @@ files just to build a mental model. couch-potato pre-builds that model:
 - Per-directory summary: `purpose`, `entries`, `deps`, `gotchas`.
 - Hash-pinned to git blob hashes — staleness is mathematically detectable.
 - Shadow lives at `~/.couch-potato/projects/<repo-name>/`, never in the product repo.
-- A wrapper command spawns `claude` with the root map injected into the
-  system prompt; auto-syncs changed maps when the session ends.
+- A wrapper command spawns `claude` with the shadow path and a few
+  navigation rules injected as a tiny system prompt — Claude reads the
+  per-dir `_MAP.md` on demand, no eager inlining.
 
 ## Install
 
@@ -44,8 +45,11 @@ couch-potato sync
 # or incrementally:
 couch-potato sync --scope src/feature
 
-# 3. Work with Claude — wrapper auto-injects the map and auto-syncs on exit
+# 3. Work with Claude — wrapper injects shadow path + navigation rules
 couch-potato work
+
+# 4. After making changes, re-sync on demand
+couch-potato sync
 ```
 
 ## Commands
@@ -56,7 +60,7 @@ couch-potato work
 | `couch-potato scan` | Walk shadow bottom-up and LLM-summarize each dir. `--scope <subpath>` to filter. |
 | `couch-potato sync` | Detect stale/new/orphan dirs from real repo, refresh affected. `--scope` to limit. |
 | `couch-potato status` | Diff shadow against real repo. `--scope` to limit. |
-| `couch-potato work` | Spawn `claude` in the real repo with the shadow's root map injected as system prompt. |
+| `couch-potato work` | Spawn `claude` in the real repo with the shadow path + navigation rules as a slim system prompt. |
 | `couch-potato completion <shell>` | Print zsh / bash / fish completion script. |
 
 `scan`, `sync`, `status`, and `work` auto-resolve the shadow when run from inside the real repo (or from the shadow itself). Pass `--shadow <dir>` to override; `--concurrency N` (scan/sync) sets parallel workers; `--scope <path>` limits the operation to a subtree.
