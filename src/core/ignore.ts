@@ -40,6 +40,13 @@ Pipfile.lock
 Cargo.lock
 go.sum
 bun.lock
+
+# --- Vendored / third-party code (typically committed, so .gitignore
+# doesn't cover it — but huge dirs blow past LLM context windows) ---
+vendor/
+third_party/
+3rd_party/
+deps/
 `;
 
 /**
