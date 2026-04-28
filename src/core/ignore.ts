@@ -8,44 +8,38 @@ export function ignorePath(shadow: string): string {
   return join(shadow, IGNORE_REL);
 }
 
+// Always-on patterns: scanning these is pure waste, no judgment call needed.
+// Applied before the user's ignore file, so the user can still escape with
+// gitignore-style negation (e.g. \`!node_modules/\`).
+const HARDCODED_IGNORE = `node_modules/
+**/__pycache__/
+.DS_Store
+*.pyc
+*.pyo
+`;
+
 export const DEFAULT_IGNORE_TEMPLATE = `# couch-potato ignore patterns (gitignore syntax)
 #
-# Paths matching any pattern below are skipped during map generation.
-# Edit this file to skip dirs/files that don't help navigation.
+# Files in your repo's .gitignore are already invisible to couch-potato
+# (we read via \`git ls-tree\`), so don't repeat those here. Add patterns
+# only for files that ARE tracked but unhelpful for code navigation.
+#
+# A small set of universally-useless patterns (node_modules, __pycache__,
+# .DS_Store, *.pyc) is hardcoded and always applied — you don't need to
+# list them. Use \`!pattern\` to escape any of them if you really need to.
+#
 # After editing, run \`couch-potato sync\` — already-mirrored dirs that
 # now match these patterns will be cleaned up as orphans.
 
-# --- Third-party / vendored code ---
-vendor/
-third_party/
-deps/
-
-# --- Build / output / cache ---
-build/
-dist/
-out/
-target/
-**/__pycache__/
-**/.cache/
-
-# --- Generated code ---
-**/generated/
-**/*.generated.*
-**/*.pb.go
-**/*_pb2.py
-**/*_pb2_grpc.py
-
-# --- Test fixtures ---
-**/testdata/
-**/__fixtures__/
-
-# --- Lockfiles (rarely useful for navigation) ---
+# --- Lockfiles (tracked, but rarely useful for navigation) ---
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
 poetry.lock
+Pipfile.lock
 Cargo.lock
 go.sum
+bun.lock
 `;
 
 /**
@@ -54,6 +48,7 @@ go.sum
  */
 export async function loadIgnore(shadow: string): Promise<Ignore> {
   const ig = ignoreLib();
+  ig.add(HARDCODED_IGNORE);
   const content = await readFile(ignorePath(shadow), "utf8").catch(() => "");
   if (content) ig.add(content);
   return ig;
